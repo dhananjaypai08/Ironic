@@ -6,7 +6,7 @@ import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interf
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract Ironic is ERC20, AutomationCompatibleInterface{
+contract IronicPol is ERC20, AutomationCompatibleInterface{
 
     struct Portfolio{
         uint256 ironBalance;
@@ -27,14 +27,16 @@ contract Ironic is ERC20, AutomationCompatibleInterface{
         uint decimal;
     }
     
-    address public constant BTC_B_Reserve = 0xa284e0aCB9a5F46CE7884D9929Fa573Ff842d7b3; // BTC.b Proof of Reserves
-    address public constant CCIP_BNM = 0xD21341536c5cF5EB1bcb58f6723cE26e8D8E90e4; // ccip-bnm token on avalanche fuji testnet
+    address public constant COP_W_Reserves = 0x85F14a8F5B3Bf49C49882287FB386d809ee8944a; // COPW Proof of Reserves
+    address public constant USDFB_Reserves = 0xa191606c0411567aF77E9c55F34d5f916eaDd10B; // USDFB Proof of reserves
+    address public constant CCIP_BNM = 0xcab0EF91Bee323d1A617c0a027eE753aFd6997E4; // ccip-bnm token on avalanche fuji testnet
     AggregatorV3Interface internal reserveFeed;
     address public owner;
     mapping(address => Portfolio) public userPortfolio;
     mapping(string => Reserve) public crosschainTokens;
     Position[] private user_positions;
     mapping(string => address) public CCTokenMaps;
+    mapping(string => bool) internal active_reserve;
 
     uint256 public counter;
     /**
@@ -48,11 +50,34 @@ contract Ironic is ERC20, AutomationCompatibleInterface{
         lastTimeStamp = block.timestamp;
         counter = 0;
 
-        reserveFeed = AggregatorV3Interface(BTC_B_Reserve);
+        reserveFeed = AggregatorV3Interface(COP_W_Reserves);
+        active_reserve["copw"] = true;
         _mint(address(this), initialSupply);
-        Reserve memory btc_b_reserve = Reserve(BTC_B_Reserve, 8);
-        crosschainTokens["ccip-bnm"] = btc_b_reserve;
+        Reserve memory reserve = Reserve(COP_W_Reserves, 8);
+        crosschainTokens["ccip-bnm"] = reserve;
         CCTokenMaps["ccip-bnm"] = CCIP_BNM;
+        owner = msg.sender;
+    }
+
+    modifier onlyOwner(){
+        require(msg.sender == owner, "You are not the owner");
+        _;
+    }
+
+    function changeReserveFeed() public onlyOwner {
+        if(active_reserve["copw"]){
+            reserveFeed = AggregatorV3Interface(USDFB_Reserves);
+            active_reserve["usdfb"] = true;
+            active_reserve["copw"] = false;
+            Reserve memory reserve = Reserve(USDFB_Reserves, 8);
+            crosschainTokens["ccip-bnm"] = reserve;
+        } else{
+            reserveFeed = AggregatorV3Interface(COP_W_Reserves);
+            active_reserve["copw"] = true;
+            active_reserve["usdfb"] = false;
+            Reserve memory reserve = Reserve(COP_W_Reserves, 8);
+            crosschainTokens["ccip-bnm"] = reserve;
+        }
     }
 
     modifier balanceCheck(uint256 amount, string memory token_name) {
