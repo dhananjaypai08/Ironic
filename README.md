@@ -18,13 +18,6 @@ A DeFi protocol that enables users to mint  synthetic assets on avalanche-fuji b
 
 ## Development Setup
 
-### Prerequisites
-
-- Node.js 18+
-- Python 3.9+
-- Avalanche Fuji testnet tokens
-- MetaMask or compatible wallet
-
 ### Installation
 
 1. **Clone the repository**
@@ -37,7 +30,7 @@ git submodule update --init --recursive # Install ccip-sdk submodule
 2. **Install dependencies**
 ```bash
 cd frontend
-npm install
+npm install --legacy-peer-deps
 
 # Python SDK
 cd ccip-transfer-example
@@ -75,7 +68,7 @@ cd ccip-transfer-example && python avalanche-base.py
 
 | Network | Contract Address | Explorer |
 |---------|------------------|----------|
-| Avalanche Fuji | `0x742d35Cc6634C0532925a3b8D94C06A3D6B2df4c` | [View](https://testnet.snowtrace.io/address/0x63a65f1Aa3B73F126A01936Dc4B4814E24B93555)
+| Avalanche Fuji | `0x63a65f1Aa3B73F126A01936Dc4B4814E24B93555` | [View](https://testnet.snowtrace.io/address/0x63a65f1Aa3B73F126A01936Dc4B4814E24B93555)
 
 ### Mainnet (Coming Soon) for Global Proof of Reserve Backed IRON
 
