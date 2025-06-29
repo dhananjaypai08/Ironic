@@ -13,13 +13,15 @@ import {
   CheckCircle,
   XCircle,
   Eye,
-  ExternalLink
+  ExternalLink,
+  Brain
 } from 'lucide-react';
 import { useUserData } from '@/hooks/useUserData';
 import { useReserveData } from '@/hooks/useReserveData';
 import MetricCard from './MetricCard';
 import PositionCard from './PositionCard';
 import WithdrawModal from './WithdrawModal';
+import AIAnalytics from './AIAnalytics';
 import { CHAIN_CONFIG } from '@/utils/constants';
 
 const Portfolio = () => {
@@ -35,7 +37,7 @@ const Portfolio = () => {
     address 
   } = useUserData();
   
-  const { reservePrice, reserveInfo } = useReserveData();
+  const { reservePrice, reserveInfo, priceHistory } = useReserveData();
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -197,6 +199,7 @@ const Portfolio = () => {
             <nav className="flex space-x-8">
               {[
                 { id: 'overview', name: 'Overview', count: null },
+                { id: 'ai-insights', name: 'AI Insights', count: null },
                 { id: 'positions', name: 'Positions', count: positions.length },
                 { id: 'reserves', name: 'Reserve Data', count: null }
               ].map((tab) => (
@@ -216,6 +219,9 @@ const Portfolio = () => {
                     <span className="bg-gray-700 text-gray-300 rounded-full px-2 py-1 text-xs">
                       {tab.count}
                     </span>
+                  )}
+                  {tab.id === 'ai-insights' && (
+                    <Brain className="w-4 h-4" />
                   )}
                 </button>
               ))}
@@ -271,6 +277,60 @@ const Portfolio = () => {
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'ai-insights' && (
+            <div className="space-y-8">
+              {/* Risk Analysis */}
+              <div>
+                <h3 className="text-2xl font-bold mb-4 flex items-center">
+                  <Shield className="w-6 h-6 text-red-400 mr-2" />
+                  Risk Analysis
+                </h3>
+                <AIAnalytics
+                  userAddress={address}
+                  portfolio={portfolio}
+                  positions={positions}
+                  reserveData={{ reservePrice, priceHistory }}
+                  userMetrics={userMetrics}
+                  analysisType="risk"
+                  className="mb-6"
+                />
+              </div>
+
+              {/* Position Analysis */}
+              <div>
+                <h3 className="text-2xl font-bold mb-4 flex items-center">
+                  <Activity className="w-6 h-6 text-purple-400 mr-2" />
+                  Position Analysis
+                </h3>
+                <AIAnalytics
+                  userAddress={address}
+                  portfolio={portfolio}
+                  positions={positions}
+                  reserveData={{ reservePrice, priceHistory }}
+                  userMetrics={userMetrics}
+                  analysisType="positions"
+                  className="mb-6"
+                />
+              </div>
+
+              {/* Opportunities */}
+              <div>
+                <h3 className="text-2xl font-bold mb-4 flex items-center">
+                  <TrendingUp className="w-6 h-6 text-green-400 mr-2" />
+                  Optimization Opportunities
+                </h3>
+                <AIAnalytics
+                  userAddress={address}
+                  portfolio={portfolio}
+                  positions={positions}
+                  reserveData={{ reservePrice, priceHistory }}
+                  userMetrics={userMetrics}
+                  analysisType="opportunities"
+                />
               </div>
             </div>
           )}

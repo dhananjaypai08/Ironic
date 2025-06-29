@@ -98,7 +98,7 @@ export const useContract = () => {
       return allowance;
     } catch (error) {
       console.error('❌ Error checking allowance:', error);
-      return ethers.BigNumber.from('0');
+      return ;//ethers.BigNumber.from('0');
     }
   }, [getTokenContract]);
 
@@ -111,7 +111,7 @@ export const useContract = () => {
       return balance;
     } catch (error) {
       console.error('❌ Error checking balance:', error);
-      return ethers.BigNumber.from('0');
+      return ;//ethers.BigNumber.from('0');
     }
   }, [getTokenContract]);
 
