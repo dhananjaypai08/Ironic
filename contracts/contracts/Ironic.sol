@@ -3,11 +3,10 @@ pragma solidity ^0.8.19;
 
 import {AutomationCompatibleInterface} from "@chainlink/contracts/src/v0.8/automation/AutomationCompatible.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract Ironic is ERC20, AutomationCompatibleInterface{
-
     struct Portfolio{
         uint256 ironBalance;
         address tokenDeposited;
@@ -20,6 +19,7 @@ contract Ironic is ERC20, AutomationCompatibleInterface{
         string tokenDeposited;
         uint256 stopLossThreshold;
         bool isActive;
+        address user; // Track which user owns this position
     }
 
     struct Reserve{
@@ -37,9 +37,6 @@ contract Ironic is ERC20, AutomationCompatibleInterface{
     mapping(string => address) public CCTokenMaps;
 
     uint256 public counter;
-    /**
-     * Use an interval in seconds and a timestamp to slow execution of Upkeep
-     */
     uint256 public immutable interval;
     uint256 public lastTimeStamp;
 
@@ -50,35 +47,23 @@ contract Ironic is ERC20, AutomationCompatibleInterface{
 
         reserveFeed = AggregatorV3Interface(BTC_B_Reserve);
         _mint(address(this), initialSupply);
-        Reserve memory btc_b_reserve = Reserve(BTC_B_Reserve, 8);
-        crosschainTokens["ccip-bnm"] = btc_b_reserve;
+        
+        // FIX: Store CCIP_BNM token address (18 decimals), not oracle address
+        Reserve memory ccip_bnm_reserve = Reserve(CCIP_BNM, 18);
+        crosschainTokens["ccip-bnm"] = ccip_bnm_reserve;
         CCTokenMaps["ccip-bnm"] = CCIP_BNM;
-    }
-
-    modifier balanceCheck(uint256 amount, string memory token_name) {
-        require(amount > 0, "amount is not valid");
-        require(crosschainTokens[token_name].token != address(0), "token name doesnt exist");
-        require(
-        IERC20(crosschainTokens[token_name].token).balanceOf(address(this)) >= amount,
-        "Insufficient contract token balance");
-        _;
-    }
-
-    modifier checkWithdrawal(address user, uint256 amount, string memory token_name){
-        require(amount > 0, "amount is not valid");
-        require(crosschainTokens[token_name].token != address(0), "token name doesnt exist");
-        require(userPortfolio[user].allowedwithdrawalTimestamp > block.timestamp , "User is not allowed to withdraw within the freezing period");
-        _;
+        owner = msg.sender;
     }
 
     function convertToMintAmount(
-        int256 depositAmount,        // 18 decimals
-        int256 reservePrice,          // 8 decimals (e.g., from getReserveData)
-        string memory token_name
-    ) public view returns (int256) {
-        // Since reservePrice is 8 decimals, we need to scale it to 18 decimals
-        // So: depositAmount * reservePrice / 1e(number of decimals) keeps the result in 18 decimals
-        return (depositAmount * reservePrice) / int256(10**crosschainTokens[token_name].decimal);
+        uint256 depositAmount, // raw token amount
+        uint8 tokenDecimals,   // e.g., 18
+        int256 reservePrice    // 8 decimals
+    ) public pure returns (uint256) {
+        // Scale: depositAmount * reservePrice / 10^8
+        // First normalize deposit to 18 decimals
+        uint256 scaledDeposit = depositAmount * (10 ** (18 - tokenDecimals));
+        return (scaledDeposit * uint256(reservePrice)) / 10 ** 8;
     }
 
     // get latest proof of reserve data
@@ -94,8 +79,9 @@ contract Ironic is ERC20, AutomationCompatibleInterface{
         return reserve;
     }
 
-    function getIronBalance(string memory token_name, address user) public view returns(uint256){
-        return IERC20(crosschainTokens[token_name].token).balanceOf(user);
+    // FIX: This should return the user's IRN balance, not underlying token balance
+    function getIronBalance(address user) public view returns(uint256){
+        return balanceOf(user); // Return IRN token balance
     }
 
     function checkUpkeep(
@@ -107,10 +93,12 @@ contract Ironic is ERC20, AutomationCompatibleInterface{
         returns (bool upkeepNeeded, bytes memory /* performData */)
     {
         bool flag = false;
-        for(uint256 i =0; i<user_positions.length; i++){
-            uint256 data = uint256(getLatestReserve());
-            if(user_positions[i].isActive && user_positions[i].stopLossThreshold <= data){
+        uint256 currentPrice = uint256(getLatestReserve());
+        
+        for(uint256 i = 0; i < user_positions.length; i++){
+            if(user_positions[i].isActive && user_positions[i].stopLossThreshold >= currentPrice){
                 flag = true;
+                break;
             }
         }
         upkeepNeeded = flag;
@@ -119,52 +107,146 @@ contract Ironic is ERC20, AutomationCompatibleInterface{
     function performUpkeep(bytes calldata /* performData */) external override {
         if ((block.timestamp - lastTimeStamp) > interval) {
             lastTimeStamp = block.timestamp;
-            for(uint256 i =0; i<user_positions.length; i++){
-                uint256 data = uint256(getLatestReserve());
-                if(user_positions[i].isActive && user_positions[i].stopLossThreshold <= data){
+            uint256 currentPrice = uint256(getLatestReserve());
+            
+            for(uint256 i = 0; i < user_positions.length; i++){
+                if(user_positions[i].isActive && user_positions[i].stopLossThreshold >= currentPrice){
                     user_positions[i].isActive = false;
-                    withdraw(user_positions[i].tokenDeposited, user_positions[i].amount);
+                    // Trigger withdrawal for the position owner
+                    _triggerStopLoss(i);
                 }
             }
         }  
     }
 
-    function deposit(string memory token_name, uint256 amount) external balanceCheck(amount, token_name) {
-        address token = crosschainTokens[token_name].token;
+    // Internal function to handle stop-loss withdrawals
+    function _triggerStopLoss(uint256 positionIndex) internal {
+        Position storage position = user_positions[positionIndex];
+        address positionOwner = position.user;
+        
+        // Calculate how much IRN to burn based on original deposit
+        uint256 ironAmount = position.amount; // This should be the IRN amount, not underlying
+        
+        // Check if user has enough IRN tokens
+        if (balanceOf(positionOwner) >= ironAmount) {
+            _burn(positionOwner, ironAmount);
+            
+            // Transfer underlying tokens back
+            address token = crosschainTokens[position.tokenDeposited].token;
+            if (IERC20(token).balanceOf(address(this)) >= position.amount) {
+                IERC20(token).transfer(positionOwner, position.amount);
+                
+                // Update user portfolio
+                userPortfolio[positionOwner].ironBalance -= ironAmount;
+                userPortfolio[positionOwner].withdrawn += position.amount;
+            }
+        }
+    }
+
+    function nativeBalance() public view returns(uint256){
+        return IERC20(CCIP_BNM).balanceOf(msg.sender);
+    }
+
+    function checkApprovalCCToken() public view returns(uint256){
+        return IERC20(CCIP_BNM).allowance(msg.sender, address(this));
+    }
+
+    function approveCCToken(uint256 amount) external returns(bool){
+        bool success = IERC20(CCIP_BNM).approve(address(this), amount);
+        return success;
+    }
+
+    function deposit(string memory token_name, uint256 amount) external {
+        require(amount > 0, "Amount must be greater than 0");
+        
+        // Use the consistent token mapping
+        address token = CCIP_BNM;
+        
+        // Check allowance and balance
+        require(IERC20(token).allowance(msg.sender, address(this)) >= amount, "Insufficient allowance");
+        require(IERC20(token).balanceOf(msg.sender) >= amount, "Insufficient token balance");
+        
+        require(IERC20(token).transferFrom(msg.sender, address(this), amount), "Transfer failed");
+        
+        // Update user portfolio
         userPortfolio[msg.sender].tokenDeposited = token;
         userPortfolio[msg.sender].allowedwithdrawalTimestamp = block.timestamp + 1 hours;
-        require(IERC20(token).transfer(address(this), amount), "Transfer failed");
-        int256 newAmount = int256(amount);
-        int256 mintAmount = convertToMintAmount(newAmount, getLatestReserve(), token_name);
+        
+        // Calculate how many IRN tokens to mint
+        uint8 tokenDecimals = uint8(crosschainTokens[token_name].decimal);
+        uint256 mintAmount = convertToMintAmount(amount, tokenDecimals, getLatestReserve());
+
+        require(mintAmount > 0, "Invalid mint amount calculated");
+        
         uint256 mintAmountUint256 = uint256(mintAmount);
         userPortfolio[msg.sender].ironBalance += mintAmountUint256;
-        userPortfolio[msg.sender].tokenDeposited = CCTokenMaps[token_name];
+        
+        // Mint IRN tokens to user
         _mint(msg.sender, mintAmountUint256);
     }
 
-    function depositStopLoss(string memory token_name, uint256 amount, uint256 stop_loss_threshold) external balanceCheck(amount, token_name){
+    function depositStopLoss(string memory token_name, uint256 amount, uint256 stop_loss_threshold) external {
+        require(amount > 0, "Amount must be greater than 0");
+        require(crosschainTokens[token_name].token != address(0), "Token not supported");
+        
         uint256 currentPrice = uint256(getLatestReserve());
-        require(currentPrice > stop_loss_threshold, "Stop loss triggered - price too low");
-        address token = crosschainTokens[token_name].token;
+        require(currentPrice > stop_loss_threshold, "Stop loss threshold too high");
+        
+        address token = CCTokenMaps[token_name];
+        
+        // Check allowance and balance
+        require(IERC20(token).allowance(msg.sender, address(this)) >= amount, "Insufficient allowance");
+        require(IERC20(token).balanceOf(msg.sender) >= amount, "Insufficient token balance");
+        
+        // Transfer tokens from user to contract
+        require(IERC20(token).transferFrom(msg.sender, address(this), amount), "Transfer failed");
+        
+        // Update user portfolio
         userPortfolio[msg.sender].tokenDeposited = token;
         userPortfolio[msg.sender].allowedwithdrawalTimestamp = block.timestamp + 1 hours;
-        require(IERC20(token).transfer(address(this), amount), "Transfer failed");
-        int256 newAmount = int256(amount);
-        int256 mintAmount = convertToMintAmount(newAmount, getLatestReserve(), token_name);
+        
+        // Calculate how many IRN tokens to mint
+        uint8 tokenDecimals = uint8(crosschainTokens[token_name].decimal);
+        uint256 mintAmount = convertToMintAmount(amount, tokenDecimals, getLatestReserve());
+
+        require(mintAmount > 0, "Invalid mint amount calculated");
+        
         uint256 mintAmountUint256 = uint256(mintAmount);
+        
+        // Mint IRN tokens to user
         _mint(msg.sender, mintAmountUint256);
         userPortfolio[msg.sender].ironBalance += mintAmountUint256;
-        userPortfolio[msg.sender].tokenDeposited = CCTokenMaps[token_name];
 
-        user_positions.push(Position(amount, token_name, stop_loss_threshold, true));
+        // Create position with IRN amount for stop-loss tracking
+        user_positions.push(Position({
+            amount: mintAmountUint256, // Store IRN amount, not underlying amount
+            tokenDeposited: token_name,
+            stopLossThreshold: stop_loss_threshold,
+            isActive: true,
+            user: msg.sender
+        }));
     }
 
-    function withdraw(string memory token_name, uint256 amount) public checkWithdrawal(msg.sender, amount, token_name) {
-        address token = userPortfolio[msg.sender].tokenDeposited;
-        require(IERC20(token).transfer(address(this), amount), "Transfer failed");
-        uint256 balance = uint256(userPortfolio[msg.sender].ironBalance);
-        require (balance >= amount , "Insufficient token balance to withdraw");
-        require(IERC20(token).transferFrom(address(this), msg.sender, amount), "Transfer failed");
+    function withdraw(string memory token_name, uint256 amount) public {
+        require(amount > 0, "Amount must be greater than 0");
+        require(CCTokenMaps[token_name] != address(0), "Token not supported");
+        require(userPortfolio[msg.sender].allowedwithdrawalTimestamp <= block.timestamp, "Withdrawal not yet allowed");
+        
+        uint256 balance = userPortfolio[msg.sender].ironBalance;
+        require(balance >= amount, "Insufficient IRN balance");
+        
+        address token = CCTokenMaps[token_name];
+        
+        // Check contract has enough underlying tokens
+        require(IERC20(token).balanceOf(address(this)) >= amount, "Insufficient contract balance");
+        
+        // Burn IRN tokens from user
+        _burn(msg.sender, amount);
+        
+        // Transfer underlying tokens to user
+        require(IERC20(token).transfer(msg.sender, amount), "Transfer failed");
+        
+        // Update user portfolio
         userPortfolio[msg.sender].ironBalance -= amount;
         userPortfolio[msg.sender].withdrawn += amount;
         userPortfolio[msg.sender].allowedwithdrawalTimestamp = block.timestamp + 1 hours;
@@ -174,5 +256,41 @@ contract Ironic is ERC20, AutomationCompatibleInterface{
         return user_positions;
     }
 
+    // Helper function to get user's specific positions
+    function getUserPositions(address user) public view returns(Position[] memory) {
+        uint256 userPositionCount = 0;
+        
+        // Count user positions
+        for(uint256 i = 0; i < user_positions.length; i++) {
+            if(user_positions[i].user == user) {
+                userPositionCount++;
+            }
+        }
+        
+        // Create array for user positions
+        Position[] memory userPositions = new Position[](userPositionCount);
+        uint256 index = 0;
+        
+        for(uint256 i = 0; i < user_positions.length; i++) {
+            if(user_positions[i].user == user) {
+                userPositions[index] = user_positions[i];
+                index++;
+            }
+        }
+        
+        return userPositions;
+    }
 
+    // Emergency function to check contract state
+    function getContractInfo() public view returns (
+        address tokenAddress,
+        uint256 contractTokenBalance,
+        uint256 contractIRNBalance,
+        int256 currentReservePrice
+    ) {
+        tokenAddress = CCTokenMaps["ccip-bnm"];
+        contractTokenBalance = IERC20(tokenAddress).balanceOf(address(this));
+        contractIRNBalance = balanceOf(address(this));
+        currentReservePrice = getLatestReserve();
+    }
 }
