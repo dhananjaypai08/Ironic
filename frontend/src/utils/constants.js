@@ -3,7 +3,7 @@ import abi from "@/abi/Ironic.json"
 export const CHAIN_CONFIG = {
   chainId: 43113,
   name: "Avalanche Fuji",
-  rpcUrl: "https://api.avax-test.network/ext/bc/C/rpc",
+  rpcUrl: "https://avalanche-fuji.drpc.org",
   explorerUrl: "https://testnet.snowscan.xyz",
   nativeCurrency: {
     name: "AVAX",

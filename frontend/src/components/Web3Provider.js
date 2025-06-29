@@ -9,7 +9,7 @@ const AvalancheTestnet = {
   name: "Avalanche Fuji Testnet",
   nativeCurrency: {name: 'Avalanche fuji', symbol: 'AVAX', decimals: 18},
   rpcUrls: {
-    default: { http : ["https://api.avax-test.network/ext/bc/C/rpc"] }
+    default: { http : ["https://avalanche-fuji.drpc.org"] }
   },
   blockExplorers: {
     default: { name: 'Avalanche Fuji expolorer', url: "https://testnet.snowcan.xyz/" }
