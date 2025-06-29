@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { useAccount, useWalletClient } from 'wagmi';
 import IronicABI from '@/abi/Ironic.json';
+import IERC20ABI from '@/abi/IERC20.json';
 import { CONTRACT_CONFIG, CHAIN_CONFIG } from '@/utils/constants';
 import toast from 'react-hot-toast';
 
@@ -80,6 +81,92 @@ export const useContract = () => {
     initContracts();
   }, [walletClient, isConnected]);
 
+  // Get token contract instance
+  const getTokenContract = useCallback((tokenAddress, readOnly = false) => {
+    if (readOnly || !signer) {
+      return new ethers.Contract(tokenAddress, IERC20ABI.abi, provider);
+    }
+    return new ethers.Contract(tokenAddress, IERC20ABI.abi, signer);
+  }, [provider, signer]);
+
+  // Check token allowance
+  const checkTokenAllowance = useCallback(async (tokenAddress, userAddress, spenderAddress) => {
+    try {
+      const tokenContract = getTokenContract(tokenAddress, true);
+      const allowance = await tokenContract.allowance(userAddress, spenderAddress);
+      console.log('📊 Current allowance:', ethers.formatEther(allowance));
+      return allowance;
+    } catch (error) {
+      console.error('❌ Error checking allowance:', error);
+      return ethers.BigNumber.from('0');
+    }
+  }, [getTokenContract]);
+
+  // Check token balance
+  const checkTokenBalance = useCallback(async (tokenAddress, userAddress) => {
+    try {
+      const tokenContract = getTokenContract(tokenAddress, true);
+      const balance = await tokenContract.balanceOf(userAddress);
+      console.log('💰 Token balance:', ethers.formatEther(balance));
+      return balance;
+    } catch (error) {
+      console.error('❌ Error checking balance:', error);
+      return ethers.BigNumber.from('0');
+    }
+  }, [getTokenContract]);
+
+  // Approve tokens
+  const approveToken = useCallback(async (tokenAddress, spenderAddress, amount) => {
+    if (!signer) throw new Error('Wallet not connected');
+
+    try {
+      console.log('🔄 Approving tokens...');
+      console.log('📍 Token:', tokenAddress);
+      console.log('📍 Spender:', spenderAddress);
+      console.log('💰 Amount:', amount.toString());
+
+      const tokenContract = getTokenContract(tokenAddress);
+      
+      toast.loading('Requesting token approval...', { id: 'approve' });
+
+      // Estimate gas for approval
+      const gasEstimate = await tokenContract.approve.estimateGas(spenderAddress, amount);
+      console.log('⛽ Approval gas estimate:', gasEstimate.toString());
+
+      // Execute approval
+      const approveTx = await tokenContract.approve(spenderAddress, amount);
+      console.log('✅ Approval transaction submitted:', approveTx.hash);
+      
+      toast.loading(
+        <div>
+          <div>Approval submitted!</div>
+          <div className="text-xs text-gray-400">Hash: {approveTx.hash.slice(0, 10)}...</div>
+        </div>,
+        { id: 'approve' }
+      );
+
+      // Wait for confirmation
+      const receipt = await approveTx.wait();
+      console.log('✅ Approval confirmed:', receipt);
+      
+      toast.success('Tokens approved successfully!', { id: 'approve' });
+      
+      return { tx: approveTx, receipt };
+    } catch (error) {
+      console.error('❌ Approval error:', error);
+      
+      if (error.code === 'ACTION_REJECTED') {
+        toast.error('Approval cancelled by user', { id: 'approve' });
+      } else if (error.reason) {
+        toast.error(`Approval failed: ${error.reason}`, { id: 'approve' });
+      } else {
+        toast.error('Token approval failed', { id: 'approve' });
+      }
+      
+      throw error;
+    }
+  }, [signer, getTokenContract]);
+
   // Get latest reserve data
   const getLatestReserve = useCallback(async () => {
     if (!readOnlyContract) return null;
@@ -143,75 +230,26 @@ export const useContract = () => {
     
     try {
       console.log('🔄 Fetching iron balance...');
-      const balance = await readOnlyContract.getIronBalance(tokenName, userAddress);
+      const balance = await readOnlyContract.balanceOf(userAddress);
       console.log('✅ Iron balance fetched:', balance.toString());
       return ethers.formatEther(balance);
     } catch (error) {
       console.error('❌ Error fetching iron balance:', error);
-      return '0';
+      console.log('💡 Falling back to portfolio ironBalance...');
+      
+      try {
+        const portfolio = await readOnlyContract.userPortfolio(userAddress);
+        return ethers.formatEther(portfolio.ironBalance);
+      } catch (portfolioError) {
+        console.error('❌ Portfolio fallback also failed:', portfolioError);
+        return '0';
+      }
     }
   }, [readOnlyContract]);
 
-  // Check if user needs to approve tokens first
-  const checkTokenApproval = useCallback(async (tokenAddress, amount) => {
-    if (!signer || !contract) return false;
-    
-    try {
-      const tokenContract = new ethers.Contract(
-        tokenAddress,
-        ['function allowance(address owner, address spender) view returns (uint256)'],
-        signer
-      );
-      
-      const userAddress = await signer.getAddress();
-      const contractAddress = await contract.getAddress();
-      const allowance = await tokenContract.allowance(userAddress, contractAddress);
-      
-      return allowance >= ethers.parseEther(amount.toString());
-    } catch (error) {
-      console.error('Error checking token approval:', error);
-      return false;
-    }
-  }, [signer, contract]);
-
-  // Approve tokens if needed
-  const approveTokens = useCallback(async (tokenAddress, amount) => {
-    if (!signer || !contract) throw new Error('Wallet not connected');
-    
-    try {
-      const tokenContract = new ethers.Contract(
-        tokenAddress,
-        [
-          'function approve(address spender, uint256 amount) returns (bool)',
-          'function symbol() view returns (string)'
-        ],
-        signer
-      );
-      
-      const contractAddress = await contract.getAddress();
-      const amountWei = ethers.parseEther(amount.toString());
-      
-      console.log('🔄 Requesting token approval...');
-      toast.loading('Requesting token approval...', { id: 'approval' });
-      
-      const approveTx = await tokenContract.approve(contractAddress, amountWei);
-      console.log('✅ Approval transaction submitted:', approveTx.hash);
-      
-      toast.loading('Confirming approval transaction...', { id: 'approval' });
-      await approveTx.wait();
-      
-      toast.success('Tokens approved successfully!', { id: 'approval' });
-      return true;
-    } catch (error) {
-      console.error('❌ Token approval failed:', error);
-      toast.error('Token approval failed', { id: 'approval' });
-      throw error;
-    }
-  }, [signer, contract]);
-
-  // Deposit function with proper MetaMask integration
+  // Enhanced deposit with approval flow
   const deposit = useCallback(async (tokenName, amount) => {
-    if (!contract || !signer) {
+    if (!contract || !signer || !address) {
       throw new Error('Wallet not connected');
     }
     
@@ -219,36 +257,56 @@ export const useContract = () => {
     try {
       const amountWei = ethers.parseEther(amount.toString());
       const contractAddress = await contract.getAddress();
+      const tokenAddress = CONTRACT_CONFIG.ccipBnmToken;
       
-      console.log('🔄 Preparing deposit...');
+      console.log('🔄 Starting deposit flow...');
       console.log('📍 Contract address:', contractAddress);
+      console.log('📍 Token address:', tokenAddress);
       console.log('💰 Amount:', amountWei.toString());
       console.log('🪙 Token:', tokenName);
-      
-      // Show preparation toast
-      toast.loading('Preparing transaction...', { id: 'deposit' });
 
-      // Estimate gas to check if transaction will succeed
-      try {
-        const gasEstimate = await contract.deposit.estimateGas(tokenName, amountWei);
-        console.log('⛽ Estimated gas:', gasEstimate.toString());
-      } catch (gasError) {
-        console.error('❌ Gas estimation failed:', gasError);
-        toast.error('Transaction will fail. Check your balance and allowances.', { id: 'deposit' });
-        throw new Error('Transaction validation failed');
+      // Step 1: Check user's token balance
+      const userBalance = await checkTokenBalance(tokenAddress, address);
+      if (userBalance < amountWei) {
+        throw new Error('Insufficient token balance');
+      }
+      console.log('✅ Balance check passed');
+
+      // Step 2: Check current allowance
+      const currentAllowance = await checkTokenAllowance(tokenAddress, address, contractAddress);
+      console.log('📊 Current allowance:', ethers.formatEther(currentAllowance));
+      
+      // Step 3: Approve if necessary
+      if (currentAllowance < amountWei) {
+        console.log('🔄 Allowance insufficient, requesting approval...');
+        await approveToken(tokenAddress, contractAddress, amountWei);
+        console.log('✅ Approval completed');
+      } else {
+        console.log('✅ Sufficient allowance available');
       }
 
-      // Execute the transaction
+      // Step 4: Verify allowance after approval
+      const newAllowance = await checkTokenAllowance(tokenAddress, address, contractAddress);
+      if (newAllowance < amountWei) {
+        throw new Error('Approval failed or insufficient');
+      }
+
+      // Step 5: Execute deposit
       console.log('🚀 Executing deposit transaction...');
-      toast.loading('Please confirm transaction in MetaMask...', { id: 'deposit' });
+      toast.loading('Please confirm deposit transaction in MetaMask...', { id: 'deposit' });
       
-      const tx = await contract.deposit(tokenName, amountWei);
-      console.log('✅ Transaction submitted:', tx.hash);
+      const connectedContract = contract.connect(signer);
       
-      // Update toast with transaction hash
+      // Estimate gas for deposit
+      const gasEstimate = await connectedContract.deposit.estimateGas(tokenName, amountWei);
+      console.log('⛽ Deposit gas estimate:', gasEstimate.toString());
+
+      const tx = await connectedContract.deposit(tokenName, amountWei);
+      console.log('✅ Deposit transaction submitted:', tx.hash);
+      
       toast.loading(
         <div>
-          <div>Transaction submitted!</div>
+          <div>Deposit submitted!</div>
           <div className="text-xs text-gray-400">Hash: {tx.hash.slice(0, 10)}...</div>
         </div>, 
         { id: 'deposit' }
@@ -257,7 +315,7 @@ export const useContract = () => {
       // Wait for confirmation
       console.log('⏳ Waiting for confirmation...');
       const receipt = await tx.wait();
-      console.log('✅ Transaction confirmed:', receipt);
+      console.log('✅ Deposit confirmed:', receipt);
       
       toast.success(
         <div>
@@ -271,26 +329,25 @@ export const useContract = () => {
     } catch (error) {
       console.error('❌ Deposit error:', error);
       
-      // Handle different error types
       if (error.code === 'ACTION_REJECTED') {
         toast.error('Transaction cancelled by user', { id: 'deposit' });
       } else if (error.code === 'INSUFFICIENT_FUNDS') {
         toast.error('Insufficient funds for gas', { id: 'deposit' });
       } else if (error.reason) {
-        toast.error(`Transaction failed: ${error.reason}`, { id: 'deposit' });
+        toast.error(`Deposit failed: ${error.reason}`, { id: 'deposit' });
       } else {
-        toast.error('Deposit failed. Please try again.', { id: 'deposit' });
+        toast.error(`Deposit failed: ${error.message}`, { id: 'deposit' });
       }
       
       throw error;
     } finally {
       setLoading(false);
     }
-  }, [contract, signer]);
+  }, [contract, signer, address, checkTokenBalance, checkTokenAllowance, approveToken]);
 
-  // Deposit with stop loss
+  // Enhanced deposit with stop loss and approval flow
   const depositStopLoss = useCallback(async (tokenName, amount, stopLossThreshold) => {
-    if (!contract || !signer) {
+    if (!contract || !signer || !address) {
       throw new Error('Wallet not connected');
     }
     
@@ -299,29 +356,44 @@ export const useContract = () => {
       const amountWei = ethers.parseEther(amount.toString());
       const thresholdWei = ethers.parseUnits(stopLossThreshold.toString(), 8);
       const contractAddress = await contract.getAddress();
+      const tokenAddress = CONTRACT_CONFIG.ccipBnmToken;
       
-      console.log('🔄 Preparing stop-loss deposit...');
+      console.log('🔄 Starting stop-loss deposit flow...');
       console.log('📍 Contract address:', contractAddress);
+      console.log('📍 Token address:', tokenAddress);
       console.log('💰 Amount:', amountWei.toString());
       console.log('🛡️ Stop-loss threshold:', thresholdWei.toString());
-      console.log('🪙 Token:', tokenName);
-      
-      toast.loading('Preparing stop-loss transaction...', { id: 'stopLossDeposit' });
 
-      // Estimate gas
-      try {
-        const gasEstimate = await contract.depositStopLoss.estimateGas(tokenName, amountWei, thresholdWei);
-        console.log('⛽ Estimated gas:', gasEstimate.toString());
-      } catch (gasError) {
-        console.error('❌ Gas estimation failed:', gasError);
-        toast.error('Transaction will fail. Check parameters and balance.', { id: 'stopLossDeposit' });
-        throw new Error('Transaction validation failed');
+      // Step 1: Check user's token balance
+      const userBalance = await checkTokenBalance(tokenAddress, address);
+      if (userBalance < amountWei) {
+        throw new Error('Insufficient token balance');
+      }
+      console.log('✅ Balance check passed');
+
+      // Step 2: Check current allowance
+      const currentAllowance = await checkTokenAllowance(tokenAddress, address, contractAddress);
+      console.log('📊 Current allowance:', ethers.formatEther(currentAllowance));
+      
+      // Step 3: Approve if necessary
+      if (currentAllowance < amountWei) {
+        console.log('🔄 Allowance insufficient, requesting approval...');
+        await approveToken(tokenAddress, contractAddress, amountWei);
+        console.log('✅ Approval completed');
+      } else {
+        console.log('✅ Sufficient allowance available');
       }
 
+      // Step 4: Execute stop-loss deposit
       console.log('🚀 Executing stop-loss deposit...');
       toast.loading('Please confirm stop-loss transaction in MetaMask...', { id: 'stopLossDeposit' });
       
-      const tx = await contract.depositStopLoss(tokenName, amountWei, thresholdWei);
+      const connectedContract = contract.connect(signer);
+      
+      const gasEstimate = await connectedContract.depositStopLoss.estimateGas(tokenName, amountWei, thresholdWei);
+      console.log('⛽ Stop-loss gas estimate:', gasEstimate.toString());
+
+      const tx = await connectedContract.depositStopLoss(tokenName, amountWei, thresholdWei);
       console.log('✅ Stop-loss transaction submitted:', tx.hash);
       
       toast.loading(
@@ -332,7 +404,6 @@ export const useContract = () => {
         { id: 'stopLossDeposit' }
       );
 
-      console.log('⏳ Waiting for confirmation...');
       const receipt = await tx.wait();
       console.log('✅ Stop-loss transaction confirmed:', receipt);
       
@@ -353,16 +424,16 @@ export const useContract = () => {
       } else if (error.reason) {
         toast.error(`Stop-loss failed: ${error.reason}`, { id: 'stopLossDeposit' });
       } else {
-        toast.error('Stop-loss deposit failed', { id: 'stopLossDeposit' });
+        toast.error(`Stop-loss deposit failed: ${error.message}`, { id: 'stopLossDeposit' });
       }
       
       throw error;
     } finally {
       setLoading(false);
     }
-  }, [contract, signer]);
+  }, [contract, signer, address, checkTokenBalance, checkTokenAllowance, approveToken]);
 
-  // Withdraw function
+  // Withdraw function (unchanged)
   const withdraw = useCallback(async (tokenName, amount) => {
     if (!contract || !signer) {
       throw new Error('Wallet not connected');
@@ -377,22 +448,17 @@ export const useContract = () => {
       console.log('📍 Contract address:', contractAddress);
       console.log('💰 Amount:', amountWei.toString());
       
+      const connectedContract = contract.connect(signer);
+      
       toast.loading('Preparing withdrawal...', { id: 'withdraw' });
 
-      // Estimate gas
-      try {
-        const gasEstimate = await contract.withdraw.estimateGas(tokenName, amountWei);
-        console.log('⛽ Estimated gas:', gasEstimate.toString());
-      } catch (gasError) {
-        console.error('❌ Gas estimation failed:', gasError);
-        toast.error('Withdrawal will fail. Check withdrawal conditions.', { id: 'withdraw' });
-        throw new Error('Withdrawal validation failed');
-      }
+      const gasEstimate = await connectedContract.withdraw.estimateGas(tokenName, amountWei);
+      console.log('⛽ Estimated gas:', gasEstimate.toString());
 
       console.log('🚀 Executing withdrawal...');
       toast.loading('Please confirm withdrawal in MetaMask...', { id: 'withdraw' });
       
-      const tx = await contract.withdraw(tokenName, amountWei);
+      const tx = await connectedContract.withdraw(tokenName, amountWei);
       console.log('✅ Withdrawal submitted:', tx.hash);
       
       toast.loading(
@@ -403,7 +469,6 @@ export const useContract = () => {
         { id: 'withdraw' }
       );
 
-      console.log('⏳ Waiting for confirmation...');
       const receipt = await tx.wait();
       console.log('✅ Withdrawal confirmed:', receipt);
       
@@ -440,11 +505,11 @@ export const useContract = () => {
     try {
       const depositWei = ethers.parseEther(depositAmount.toString());
       const reserveWei = ethers.parseUnits(reservePrice.toString(), 8);
-      
+      const tokenDecimals = 18;
       const mintAmount = await readOnlyContract.convertToMintAmount(
         depositWei,
+        tokenDecimals,
         reserveWei,
-        tokenName
       );
       
       return ethers.formatEther(mintAmount);
@@ -475,8 +540,11 @@ export const useContract = () => {
     signer,
     // Utility functions
     getContractAddress,
-    checkTokenApproval,
-    approveTokens,
+    // Token functions
+    checkTokenAllowance,
+    checkTokenBalance,
+    approveToken,
+    getTokenContract,
     // Data fetching functions
     getLatestReserve,
     getUserPortfolio,

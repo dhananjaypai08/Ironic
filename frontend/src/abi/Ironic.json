@@ -1,5 +1,5 @@
 {
-    "address": "0xea7509A956769460f78885D45d56B5147E6c5a8A",
+    "address": "0x63a65f1Aa3B73F126A01936Dc4B4814E24B93555",
     "abi": [
 	{
 		"inputs": [
@@ -249,12 +249,44 @@
 	{
 		"inputs": [
 			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "approveCCToken",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
 				"internalType": "address",
 				"name": "account",
 				"type": "address"
 			}
 		],
 		"name": "balanceOf",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "checkApprovalCCToken",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -292,30 +324,30 @@
 	{
 		"inputs": [
 			{
-				"internalType": "int256",
+				"internalType": "uint256",
 				"name": "depositAmount",
-				"type": "int256"
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint8",
+				"name": "tokenDecimals",
+				"type": "uint8"
 			},
 			{
 				"internalType": "int256",
 				"name": "reservePrice",
 				"type": "int256"
-			},
-			{
-				"internalType": "string",
-				"name": "token_name",
-				"type": "string"
 			}
 		],
 		"name": "convertToMintAmount",
 		"outputs": [
 			{
-				"internalType": "int256",
+				"internalType": "uint256",
 				"name": "",
-				"type": "int256"
+				"type": "uint256"
 			}
 		],
-		"stateMutability": "view",
+		"stateMutability": "pure",
 		"type": "function"
 	},
 	{
@@ -434,6 +466,11 @@
 						"internalType": "bool",
 						"name": "isActive",
 						"type": "bool"
+					},
+					{
+						"internalType": "address",
+						"name": "user",
+						"type": "address"
 					}
 				],
 				"internalType": "struct Ironic.Position[]",
@@ -445,12 +482,35 @@
 		"type": "function"
 	},
 	{
-		"inputs": [
+		"inputs": [],
+		"name": "getContractInfo",
+		"outputs": [
 			{
-				"internalType": "string",
-				"name": "token_name",
-				"type": "string"
+				"internalType": "address",
+				"name": "tokenAddress",
+				"type": "address"
 			},
+			{
+				"internalType": "uint256",
+				"name": "contractTokenBalance",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "contractIRNBalance",
+				"type": "uint256"
+			},
+			{
+				"internalType": "int256",
+				"name": "currentReservePrice",
+				"type": "int256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
 			{
 				"internalType": "address",
 				"name": "user",
@@ -476,6 +536,52 @@
 				"internalType": "int256",
 				"name": "",
 				"type": "int256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			}
+		],
+		"name": "getUserPositions",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint256",
+						"name": "amount",
+						"type": "uint256"
+					},
+					{
+						"internalType": "string",
+						"name": "tokenDeposited",
+						"type": "string"
+					},
+					{
+						"internalType": "uint256",
+						"name": "stopLossThreshold",
+						"type": "uint256"
+					},
+					{
+						"internalType": "bool",
+						"name": "isActive",
+						"type": "bool"
+					},
+					{
+						"internalType": "address",
+						"name": "user",
+						"type": "address"
+					}
+				],
+				"internalType": "struct Ironic.Position[]",
+				"name": "",
+				"type": "tuple[]"
 			}
 		],
 		"stateMutability": "view",
@@ -515,6 +621,19 @@
 				"internalType": "string",
 				"name": "",
 				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "nativeBalance",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
