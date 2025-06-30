@@ -146,13 +146,6 @@ const Portfolio = () => {
               subtitle="Lifetime deposits"
             />
             <MetricCard
-              title="Total Gain/Loss"
-              value={`${userMetrics.totalGain >= 0 ? '+' : ''}${userMetrics.totalGain.toFixed(4)} IRN`}
-              icon={userMetrics.totalGain >= 0 ? <TrendingUp className="w-6 h-6" /> : <TrendingDown className="w-6 h-6" />}
-              color={userMetrics.totalGain >= 0 ? "green" : "red"}
-              subtitle={`${userMetrics.gainPercentage.toFixed(2)}% return`}
-            />
-            <MetricCard
               title="Active Positions"
               value={userMetrics.activePositions.toString()}
               icon={<Activity className="w-6 h-6" />}
