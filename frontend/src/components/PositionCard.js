@@ -1,4 +1,6 @@
+"use client";
 import { CheckCircle, XCircle, Shield, TrendingDown } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const PositionCard = ({ position, index, reservePrice }) => {
   const isNearStopLoss = position.isActive && reservePrice && 
