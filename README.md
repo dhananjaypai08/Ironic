@@ -68,7 +68,7 @@ cd ccip-transfer-example && python avalanche-base.py
 
 | Network | Contract Address | Explorer |
 |---------|------------------|----------|
-| Avalanche Fuji | `0xc445e77b4836725C5D524C847C24A1a0CA5276F6` | [View](https://testnet.snowtrace.io/address/0xc445e77b4836725C5D524C847C24A1a0CA5276F6)
+| Avalanche Fuji | `0x90005A6914750Ff5ecA78d60983Dc6bbbbb32CAC` | [View](https://testnet.snowtrace.io/address/0x90005A6914750Ff5ecA78d60983Dc6bbbbb32CAC)
 
 ### Mainnet (Coming Soon) for Global Proof of Reserve Backed IRON
 

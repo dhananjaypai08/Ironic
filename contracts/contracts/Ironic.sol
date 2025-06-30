@@ -149,12 +149,14 @@ contract Ironic is ERC20, AutomationCompatibleInterface{
             
             // Transfer underlying tokens back
             address token = crosschainTokens[position.tokenDeposited].token;
-            if (IERC20(token).balanceOf(address(this)) >= position.amount) {
-                IERC20(token).transfer(positionOwner, position.amount);
+            uint8 tokenDecimals = uint8(crosschainTokens["ccip-bnm"].decimal);
+            uint256 outputAmount = convertToWithdrawAmount(ironAmount, tokenDecimals, getLatestReserve());
+            if (IERC20(token).balanceOf(address(this)) >= outputAmount) {
+                IERC20(token).transfer(positionOwner, outputAmount);
                 
                 // Update user portfolio
                 userPortfolio[positionOwner].ironBalance -= ironAmount;
-                userPortfolio[positionOwner].withdrawn += position.amount;
+                userPortfolio[positionOwner].withdrawn += outputAmount;
             }
         }
     }
