@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
 
 import {AutomationCompatibleInterface} from "@chainlink/contracts/src/v0.8/automation/AutomationCompatible.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
@@ -65,6 +65,22 @@ contract Ironic is ERC20, AutomationCompatibleInterface{
         uint256 scaledDeposit = depositAmount * (10 ** (18 - tokenDecimals));
         return (scaledDeposit * uint256(reservePrice)) / 10 ** 8;
     }
+
+    function convertToWithdrawAmount(
+        uint256 ironAmount,      // Amount of IRON tokens to redeem (18 decimals)
+        uint8 tokenDecimals,     // Decimals of the output token, e.g., 18
+        int256 reservePrice      // Reserve feed price (8 decimals)
+    ) public pure returns (uint256) {
+        require(reservePrice > 0, "Invalid reserve price");
+
+        // Reverse of mint:
+        // CCIP-BNM = (IRON * 10^8) / reservePrice
+        // Then scale to tokenDecimals
+
+        uint256 rawWithdraw = (ironAmount * 1e8) / uint256(reservePrice);
+        return rawWithdraw / (10 ** (18 - tokenDecimals));  // Adjust back to original token decimals
+    }
+
 
     // get latest proof of reserve data
     function getLatestReserve() public view returns (int) {
@@ -236,15 +252,17 @@ contract Ironic is ERC20, AutomationCompatibleInterface{
         require(balance >= amount, "Insufficient IRN balance");
         
         address token = CCTokenMaps[token_name];
+        uint8 tokenDecimals = uint8(crosschainTokens[token_name].decimal);
+        uint256 outputAmount = convertToWithdrawAmount(amount, tokenDecimals, getLatestReserve());
         
         // Check contract has enough underlying tokens
-        require(IERC20(token).balanceOf(address(this)) >= amount, "Insufficient contract balance");
+        require(IERC20(token).balanceOf(address(this)) >= outputAmount, "Insufficient contract balance");
         
         // Burn IRN tokens from user
         _burn(msg.sender, amount);
         
         // Transfer underlying tokens to user
-        require(IERC20(token).transfer(msg.sender, amount), "Transfer failed");
+        require(IERC20(token).transfer(msg.sender, outputAmount), "Transfer failed");
         
         // Update user portfolio
         userPortfolio[msg.sender].ironBalance -= amount;
@@ -293,4 +311,6 @@ contract Ironic is ERC20, AutomationCompatibleInterface{
         contractIRNBalance = balanceOf(address(this));
         currentReservePrice = getLatestReserve();
     }
+
+    receive() external payable {}
 }

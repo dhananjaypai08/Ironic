@@ -129,7 +129,7 @@ const Navbar = ({ activeTab, setActiveTab }) => {
               {/* External Links */}
               <div className="flex items-center space-x-2 pl-4 border-l border-gray-700">
                 <a
-                  href="https://testnet.snowscan.xyz/address/0xd755D84AcC1EE45F3a1e9D2EC5C6DF26060DBb22"
+                  href="https://testnet.snowscan.xyz/address/0xc445e77b4836725C5D524C847C24A1a0CA5276F6"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-2 text-gray-400 hover:text-white transition-colors"
