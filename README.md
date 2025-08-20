@@ -24,7 +24,7 @@ A DeFi protocol that enables users to mint  synthetic assets on avalanche-fuji b
 ```bash
 git clone https://github.com/dhananjaypai08/Ironic
 cd Ironic
-git submodule update --init --recursive # Install ccip-sdk submodule
+git submodule update --init --recursive
 ```
 
 2. **Install dependencies**
