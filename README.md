@@ -6,15 +6,14 @@
 
 ## 🌟 Overview
 
-A DeFi protocol that enables users to mint  synthetic assets on avalanche-fuji backed by real-world reserves. Built on Avalanche Fuji with cross-chain compatibility, the protocol leverages Chainlink's infrastructure for price feeds, automation, and cross-chain communication.
+A DeFi protocol that enables users to mint  synthetic assets on avalanche-fuji backed by real-world reserves. Built on Avalanche Fuji with multiple asset support in future to earn sharp yields on IRON, the protocol leverages Chainlink's infrastructure for price feeds, automation.
 
 ### Key Features
 
-- **Cross-Chain Synthetic Assets**: Mint IRON tokens backed by real-world reserves and withdraw using ccip-sdk in python to any chain of your choice
+- **Yield Bearing Assets**: Mint IRON tokens backed by real-world reserves and withdraw using ccip-sdk in python to any chain of your choice
 - **AI-Powered Insights**: LLaMA 3.7b integration for portfolio analytics
 - **Automated Risk Management**: Chainlink Automation for stop-loss triggers and Risk Management Network
 - **Real-Time Price Feeds**: Chainlink SmartData feeds integration
-- **Custom CCIP SDK**: Seamless cross-chain transfers
 
 ## Development Setup
 
