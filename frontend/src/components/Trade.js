@@ -319,8 +319,8 @@ const Trade = () => {
                 <div className="flex items-start space-x-3">
                   <ArrowUpDown className="w-5 h-5 text-purple-400 mt-1 flex-shrink-0" />
                   <div>
-                    <p className="font-medium text-white text-sm">Cross-Chain Withdrawals</p>
-                    <p className="text-gray-400 text-xs">Withdraw on any supported blockchain</p>
+                    <p className="font-medium text-white text-sm">Withdrawals</p>
+                    <p className="text-gray-400 text-xs">Withdraw on avalanche</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">

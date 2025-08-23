@@ -108,7 +108,7 @@ const Dashboard = () => {
             
             {/* Subtitle */}
             <p className="text-xl md:text-2xl text-gray-400 mb-8 max-w-3xl mx-auto">
-              Cross-chain reserve-bound synthetic minting with enforced withdrawal discipline.
+              Yield Bearing reserve-bound synthetic Token with enforced withdrawal discipline.
             </p>
             
             {/* Feature Badges */}
@@ -116,10 +116,6 @@ const Dashboard = () => {
               <div className="flex items-center bg-gray-800/30 backdrop-blur-sm rounded-lg px-4 py-2">
                 <Shield className="w-5 h-5 text-blue-400 mr-2" />
                 <span className="text-sm">Chainlink Automation</span>
-              </div>
-              <div className="flex items-center bg-gray-800/30 backdrop-blur-sm rounded-lg px-4 py-2">
-                <Globe className="w-5 h-5 text-purple-400 mr-2" />
-                <span className="text-sm">CCIP Cross-Chain</span>
               </div>
               <div className="flex items-center bg-gray-800/30 backdrop-blur-sm rounded-lg px-4 py-2">
                 <Zap className="w-5 h-5 text-yellow-400 mr-2" />
@@ -304,14 +300,8 @@ const Dashboard = () => {
               <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center mb-6">
                 <Globe className="w-6 h-6 text-purple-400" />
               </div>
-              <h3 className="text-xl font-semibold mb-4">Cross-Chain Withdrawals</h3>
-              <p className="text-gray-400 mb-4">
-                Withdraw your tokens on any supported blockchain using Chainlink CCIP cross-chain infrastructure.
-              </p>
               <ul className="space-y-2 text-sm text-gray-500">
-                <li>• Multi-chain support</li>
-                <li>• Secure message passing</li>
-                <li>• Unified liquidity</li>
+                <li>• Unified liquidity on Avalanche</li>
               </ul>
             </div>
 

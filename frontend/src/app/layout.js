@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 
 export const metadata = {
   title: "Ironic Protocol - Reserve-Backed Synthetic Minting",
-  description: "Cross-chain reserve-bound synthetic minting with enforced withdrawal discipline. Built on Avalanche with Chainlink oracles.",
-  keywords: "DeFi, Synthetic tokens, Chainlink, Avalanche, Cross-chain, Proof of Reserves",
+  description: "Yield bearing reserve-bound Token with enforced withdrawal discipline. Built on Avalanche with real world oracle feeds.",
+  keywords: "DeFi, Synthetic Yield Bearing token, Chainlink, Avalanche, Proof of Reserves",
   authors: [{ name: "Ironic Protocol" }],
   viewport: "width=device-width, initial-scale=1",
   themeColor: "#000000",
