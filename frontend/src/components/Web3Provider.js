@@ -16,9 +16,21 @@ const AvalancheTestnet = {
   },
 }
 
+const KatanaTestnet = {
+  id: 129399,
+  name: "Tatara Network",
+  nativeCurrency: { name: "Tatara Network", symbol: "ETH", decimals: 18},
+  rpcUrls: {
+    default: { https: ["https://rpc.tatara.katanarpc.com/EkFpgodKgurRLx9b7hZvug5sZFWrTrt5K"]}
+  },
+  blockExplorers: {
+    default: { name: "Tatara Explorer", url: "https://explorer.tatara.katana.network/"}
+  }
+}
+
 const config = createConfig(
   getDefaultConfig({
-    chains: [AvalancheTestnet],
+    chains: [KatanaTestnet],
 
     walletConnectProjectId: "a7a2557c75d9558a9c932d5f99559799",
 

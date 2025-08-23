@@ -1,8 +1,8 @@
 # IRONIC Protocol
 
-> Cross-chain synthetic assets backed by real-world reserves with AI-powered portfolio management and automated risk controls
+> Yield bearing Token backed by real-world reserves with AI-powered portfolio management and automated risk controls
 
-![IRONIC Architecture](./images/flow.png) 
+![IRONIC Architecture](./images/architecture.png) 
 
 ## 🌟 Overview
 
@@ -24,7 +24,7 @@ A DeFi protocol that enables users to mint  synthetic assets on avalanche-fuji b
 ```bash
 git clone https://github.com/dhananjaypai08/Ironic
 cd Ironic
-git submodule update --init --recursive # Install ccip-sdk submodule
+git submodule update --init --recursive
 ```
 
 2. **Install dependencies**

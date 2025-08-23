@@ -15,4 +15,5 @@ module.exports = buildModule("IronicModule", (m) => {
   });
 
   return { lock };
+
 });
