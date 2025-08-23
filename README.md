@@ -69,13 +69,6 @@ cd ccip-transfer-example && python avalanche-base.py
 |---------|------------------|----------|
 | Avalanche Fuji | `0x90005A6914750Ff5ecA78d60983Dc6bbbbb32CAC` | [View](https://testnet.snowtrace.io/address/0x90005A6914750Ff5ecA78d60983Dc6bbbbb32CAC)
 
-### Mainnet (Coming Soon) for Global Proof of Reserve Backed IRON
-
-- Avalanche C-Chain
-- Ethereum Mainnet
-- Base
-- Arbitrum One
-
 ## 🤝 Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
